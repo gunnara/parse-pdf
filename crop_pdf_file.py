@@ -1,7 +1,7 @@
 from PyPDF2 import PdfFileWriter,PdfFileReader,PdfFileMerger
 
 # Open basisfile as binary and create a output file.
-input = PdfFileReader(open("tests/fifty_pages.pdf", "rb"))
+input = PdfFileReader(open("docs/FeilListe.pdf", "rb"))
 output = PdfFileWriter()
 
 # Find number of pages in file.
@@ -18,7 +18,7 @@ for i in range(numPages):
     output.addPage(page)
 
 # Write the cropped file to result folder.
-with open("tests/fifty_pages_error_list_cropped.pdf", "wb") as out_f:
+with open("results/FeilListe_cropped.pdf", "wb") as out_f:
     output.write(out_f)
 
 # Used to get dimension of pages, in order to determining cropping.
