@@ -17,6 +17,7 @@ for i in range(numPages):
 
 with open("results/error_list_cropped.pdf", "wb") as out_f:
     output.write(out_f)
+a = 1
 
 # sdfsd
 # page = input.getPage(0)
