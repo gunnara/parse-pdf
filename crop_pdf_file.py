@@ -18,6 +18,7 @@ for i in range(numPages):
 with open("results/error_list_cropped.pdf", "wb") as out_f:
     output.write(out_f)
 
+# sdfsd
 # page = input.getPage(0)
 # print(page.cropBox.getLowerLeft())
 # print(page.cropBox.getLowerRight())
