@@ -49,10 +49,9 @@ def parse_error_code_file(name: str) -> None:
                 if match_no01 is not None:
                     pd_row += 1
                     string = match_no01.string
-                    df["No"][pd_row] = re.match(
-                        "(?<=No:\s)\d*(?=\s{1,2}\SupervisionID)", string
-                    )
-                    a = 1
+                    No_value = re.search("(?<=No:)\s+?\d*(?=\s+?\SupervisionID)", string)
+                    df["No"][pd_row] =No_value.group().strip()
+    a = 1
 
 
 if __name__ == "__main__":
