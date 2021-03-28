@@ -29,28 +29,34 @@ def parse_error_code_file(name: str) -> None:
     df = pd.DataFrame(columns=Column_Names, index=range(0, 1000))
 
     # Define regular expression for extracting data
-    TypeNo01 = re.compile(r"^(No:)\s{1,3}\S*\s{1,3}(SupervisionID)")
-    TypeNo02 = re.compile(r"^(Log)\s{1,3}(text)")
-    TypeNo03 = re.compile(r"^(Subsystem)\s{1,3}(name)")
-    TypeNo04 = re.compile(r"^(Type)\s{1,6}\w*\s{1,6}(Timeout)")
-    TypeNo05 = re.compile(r"^(Acknowledgement)\s{1,6}\S*\s{1,6}(Shutdown)\s{1,6}(type)")
-    TypeNo06 = re.compile(r'^(-)\s{1,2}(Allowed attempts|Allowed)\s{1,2}\S*\s{1,6}(-)\s{1,1}(Max time disconnect)')
-    # TypeNo07 = re.compile('r^(-)\s{1,2}(Time window|Time)\s{1,2}\S*\s{1,6}(-)\s{1,1}(Max time eliminate)')
+    type_no_01 = re.compile(r"^(No:)\s{1,3}\S*\s{1,3}(SupervisionID)")
+    type_no_02 = re.compile(r"^(Log)\s{1,3}(text)")
+    type_no_03 = re.compile(r"^(Subsystem)\s{1,3}(name)")
+    type_no_04 = re.compile(r"^(Type)\s{1,6}\w*\s{1,6}(Timeout)")
+    type_no_05 = re.compile(
+        r"^(Acknowledgement)\s{1,6}\S*\s{1,6}(Shutdown)\s{1,6}(type)"
+    )
+    type_no_06 = re.compile(
+        r"^(-)\s{1,2}(Allowed attempts|Allowed)\s{1,2}\S*\s{1,6}(-)\s{1,1}(Max time disconnect)"
+    )
+    type_no_07 = re.compile(
+        r"^(-)\s{1,2}(Time window|Time)\s*.*(-)\s{1,3}(Max)\s{1,3}(time)"
+    )
     # TypeNo08 = re.compile('r^(-)\s{1,2}(Stabilize period|Stabilize)\s{1,2}\S*\s{1,6}(Category)')
     # TypeNo09 = re.compile('r(?s)(?<=Criteria:\n).*?(?=No:\s{1,2})')
     line_number = -1
     pd_row = -1
-    # (?<=No:\s{1,2})\S*(?=\s{1,2}\SupervisionID)
 
     with open(name, "r", encoding="utf-8-sig") as error_file:
         for line in error_file:
             line_number += 1
-            match_no01 = re.search(TypeNo01, line)
-            match_no02 = re.search(TypeNo02, line)
-            match_no03 = re.search(TypeNo03, line)
-            match_no04 = re.search(TypeNo04, line)
-            match_no05 = re.search(TypeNo05, line)
-            match_no06 = re.search(TypeNo05, line)
+            match_no01 = re.search(type_no_01, line)
+            match_no02 = re.search(type_no_02, line)
+            match_no03 = re.search(type_no_03, line)
+            match_no04 = re.search(type_no_04, line)
+            match_no05 = re.search(type_no_05, line)
+            match_no06 = re.search(type_no_06, line)
+            match_no07 = re.search(type_no_07, line)
 
             # Getting "No", "SupervisionID" and "Name" values.
             if match_no01:
@@ -82,7 +88,6 @@ def parse_error_code_file(name: str) -> None:
                 df["Subsystem name"][pd_row] = (
                     re.search(r"(?<=name).*", line).group(0).strip()
                 )
-
             # Getting "Type" and "Timeout" values
             if match_no04 and row_no_update:
                 df["Type"][pd_row] = (
@@ -93,7 +98,6 @@ def parse_error_code_file(name: str) -> None:
                 df["Timeout"][pd_row] = (
                     re.search(r"(?<=Timeout).*", line).group(0).strip()
                 )
-
             # Getting "Acknowledgement" and "Shutdown type" values
             if match_no05 and row_no_update:
                 df["Acknowledgement"][pd_row] = (
@@ -108,7 +112,50 @@ def parse_error_code_file(name: str) -> None:
                     "stopSlow",
                     re.search(r"(" r"?<=type).*", line).group(0).strip(),
                 )
-                # df["Shutdown type"][pd_row] = re.search(r"(?<=type).*", line).group(0).strip()
+
+            # Getting "Allowed attempts" and "Max time disconnect" values
+            if match_no06 and row_no_update:
+                df["Allowed attempts"][pd_row] = (
+                    re.search(
+                        r"(?<=Allowed)\s{1,20}\S*\s{0,20}(?=-\s{0,3}Max)|"
+                        r"(?<=attempts)\s{1,20}\S*\s{0,20}(?=-\s{0,3}Max)",
+                        line,
+                    )
+                    .group(0)
+                    .strip()
+                )
+                max_time_disconnect = (
+                    re.search(r"(?<=disconnect).*", line)
+                    .group(0)
+                    .strip()
+                    .replace("O", "0")
+                )
+                max_time_disconnect = max_time_disconnect.replace("Q", "")
+                max_time_disconnect = max_time_disconnect.replace("’", "")
+                df["Max time disconnect"][pd_row] = max_time_disconnect.strip()
+
+        # Getting "Time window" and "Max time eliminate" values
+            if match_no07 and row_no_update:
+                time_window = (
+                    re.search(
+                        r"(?<=Time)\s{1,20}\S*\s{0,20}(?=-\s{0,3}Max)|"
+                        r"(?<=window)\s{1,20}\S*\s{0,20}(?=-\s{0,3}Max)",
+                        line,
+                    )
+                    .group(0)
+                    .strip()
+                    .replace("O", "0")
+                )
+                time_window = time_window.replace("Q", "")
+                time_window = time_window.replace("’", "")
+                df["Time window"][pd_row] = time_window.strip()
+
+                max_time_eliminate = (
+                    re.search(r"(?<=eliminate).*", line).group(0).strip().replace("O", "0")
+                )
+                max_time_eliminate = max_time_eliminate.replace("Q", "")
+                max_time_eliminate = max_time_eliminate.replace("’", "")
+                df["Max time eliminate"][pd_row] = max_time_eliminate.strip()
                 row_no_update = False
 
     a = 1
