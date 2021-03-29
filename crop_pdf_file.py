@@ -13,8 +13,8 @@ for i in range(numPages):
     page = input.getPage(i)
     page.mediaBox.lowerLeft  = (20, 75)
     page.mediaBox.lowerRight = (575, 75)
-    page.mediaBox.upperRight = (575, 750)
-    page.mediaBox.upperLeft  = (20, 750)
+    page.mediaBox.upperRight = (575, 735)
+    page.mediaBox.upperLeft  = (20, 735)
     output.addPage(page)
 
 # Write the cropped file to result folder.

@@ -42,7 +42,9 @@ def parse_error_code_file(name: str) -> None:
     type_no_07 = re.compile(
         r"^(-)\s{1,2}(Time window|Time)\s*.*(-)\s{1,3}(Max)\s{1,3}(time)"
     )
-    # TypeNo08 = re.compile('r^(-)\s{1,2}(Stabilize period|Stabilize)\s{1,2}\S*\s{1,6}(Category)')
+    type_no_08 = re.compile(
+        r"^(-)\s{1,2}(Stabilize period|Stabilize)\s{1,2}.*(Category)"
+    )
     # TypeNo09 = re.compile('r(?s)(?<=Criteria:\n).*?(?=No:\s{1,2})')
     line_number = -1
     pd_row = -1
@@ -57,6 +59,7 @@ def parse_error_code_file(name: str) -> None:
             match_no05 = re.search(type_no_05, line)
             match_no06 = re.search(type_no_06, line)
             match_no07 = re.search(type_no_07, line)
+            match_no08 = re.search(type_no_08, line)
 
             # Getting "No", "SupervisionID" and "Name" values.
             if match_no01:
@@ -70,6 +73,7 @@ def parse_error_code_file(name: str) -> None:
                 supervision_id = re.search(
                     r"(?<=SupervisionID)\s{1,3}\S*(?=\s{1,2}(Name))", line
                 )
+# TODO Get SupervisionID from next line.
                 df["SupervisionID"][pd_row] = (
                     supervision_id.group(0).strip().replace("/", "")
                 )
@@ -117,8 +121,7 @@ def parse_error_code_file(name: str) -> None:
             if match_no06 and row_no_update:
                 df["Allowed attempts"][pd_row] = (
                     re.search(
-                        r"(?<=Allowed)\s{1,20}\S*\s{0,20}(?=-\s{0,3}Max)|"
-                        r"(?<=attempts)\s{1,20}\S*\s{0,20}(?=-\s{0,3}Max)",
+                        r"(?<=- Allowed)yes|(?<=- Allowed attempts)\s{1,3}.*(?=-\s{1,3}Max)",
                         line,
                     )
                     .group(0)
@@ -134,33 +137,54 @@ def parse_error_code_file(name: str) -> None:
                 max_time_disconnect = max_time_disconnect.replace("’", "")
                 df["Max time disconnect"][pd_row] = max_time_disconnect.strip()
 
-        # Getting "Time window" and "Max time eliminate" values
+            # Getting "Time window" and "Max time eliminate" values
             if match_no07 and row_no_update:
+                a = 1
                 time_window = (
                     re.search(
-                        r"(?<=Time)\s{1,20}\S*\s{0,20}(?=-\s{0,3}Max)|"
-                        r"(?<=window)\s{1,20}\S*\s{0,20}(?=-\s{0,3}Max)",
+                        r"(?<=- Time)yes|(?<=- Time window)\s{1,3}.*(?=-\s{1,3}Max)",
                         line,
                     )
                     .group(0)
                     .strip()
                     .replace("O", "0")
                 )
-                time_window = time_window.replace("Q", "")
+                time_window = time_window.replace("Q", "0")
                 time_window = time_window.replace("’", "")
                 df["Time window"][pd_row] = time_window.strip()
 
                 max_time_eliminate = (
-                    re.search(r"(?<=eliminate).*", line).group(0).strip().replace("O", "0")
+                    re.search(r"(?<=eliminate).*", line)
+                    .group(0)
+                    .strip()
+                    .replace("O", "0")
                 )
-                max_time_eliminate = max_time_eliminate.replace("Q", "")
+                max_time_eliminate = max_time_eliminate.replace("Q", "0")
                 max_time_eliminate = max_time_eliminate.replace("’", "")
                 df["Max time eliminate"][pd_row] = max_time_eliminate.strip()
+
+            # Getting "Stabilize period" and "Category" values
+            if match_no08 and row_no_update:
+                a = 1
+                stabilize_period = (
+                    re.search(
+                        r"(?<=- Stabilize)yes|(?<=- Stabilize period)\s{1,3}.*(?=Category)",
+                        line,
+                    )
+                    .group(0)
+                    .strip()
+                    .replace("O", "0")
+                )
+                stabilize_period = stabilize_period.replace("Q", "0")
+                stabilize_period = stabilize_period.replace("’", "")
+                df["Stabilize period"][pd_row] = stabilize_period.strip()
+
+                df["Category"][pd_row] = re.search(r"(?<=Category).*", line).group(0).strip()
                 row_no_update = False
 
     a = 1
 
 
 if __name__ == "__main__":
-    file_name = "tests/fifty_pages_ocr_error_list_cropped.txt"
+    file_name = "results/FeilListe_ocr_cropped.txt"
     parse_error_code_file(file_name)
