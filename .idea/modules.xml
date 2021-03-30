@@ -2,7 +2,6 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/../parse-pdf/.idea/parse-pdf.iml" filepath="$PROJECT_DIR$/../parse-pdf/.idea/parse-pdf.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/parse_pdf.iml" filepath="$PROJECT_DIR$/.idea/parse_pdf.iml" />
     </modules>
   </component>
