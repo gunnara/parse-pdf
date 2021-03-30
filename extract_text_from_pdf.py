@@ -3,12 +3,12 @@ import ocrmypdf
 
 
 if __name__ == "__main__":
-    # input_file_name = "tests/fifty_pages_error_list_cropped.pdf"
-    # ocr_file_name = "tests/fifty_pages_ocr_error_list_cropped.pdf"
-    # txt_file_name = "tests/fifty_pages_ocr_error_list_cropped.txt"
-    input_file_name = "results/FeilListe_cropped.pdf"
-    ocr_file_name = "results/FeilListe_ocr_cropped.pdf"
-    txt_file_name = "results/FeilListe_ocr_cropped.txt"
+    input_file_name = "tests/fifty_pages_error_list_cropped.pdf"
+    ocr_file_name = "tests/fifty_pages_ocr_error_list_cropped.pdf"
+    txt_file_name = "tests/fifty_pages_ocr_error_list_cropped.txt"
+    # input_file_name = "results/FeilListe_cropped.pdf"
+    # ocr_file_name = "results/FeilListe_ocr_cropped.pdf"
+    # txt_file_name = "results/FeilListe_ocr_cropped.txt"
 
 
     os.system(f'ocrmypdf  '

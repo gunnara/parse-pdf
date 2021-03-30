@@ -1,8 +1,6 @@
 # Temporary large files stored during development
 tests/*
 results/FeilListe_ocr_cropped.pdf
+.idea/workspace.xml
 
-
-# Project files
-.idea
 

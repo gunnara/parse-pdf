@@ -1,5 +1,6 @@
 import pandas as pd
 import re
+import regex
 import linecache
 import codecs
 from collections import namedtuple
@@ -29,7 +30,7 @@ def parse_error_code_file(name: str) -> None:
     df = pd.DataFrame(columns=Column_Names, index=range(0, 1000))
 
     # Define regular expression for extracting data
-    type_no_01 = re.compile(r"^(No:)\s{1,3}\S*\s{1,3}(SupervisionID)")
+    type_no_01 = re.compile(r"^(No:)\s{1,3}\S*\s{1,3}(SupervisionID)\s{1,3}.*?(Name)\s{1,3}\S{1,}")
     type_no_02 = re.compile(r"^(Log)\s{1,3}(text)")
     type_no_03 = re.compile(r"^(Subsystem)\s{1,3}(name)")
     type_no_04 = re.compile(r"^(Type)\s{1,6}\w*\s{1,6}(Timeout)")
@@ -73,10 +74,15 @@ def parse_error_code_file(name: str) -> None:
                 supervision_id = re.search(
                     r"(?<=SupervisionID)\s{1,3}\S*(?=\s{1,2}(Name))", line
                 )
+                if not supervision_id:
+                    id_no = get_supervision_id(name,line_number)
+                else:
+                    id_no = supervision_id.group(0).strip().replace("/", "")
+
+
 # TODO Get SupervisionID from next line.
-                df["SupervisionID"][pd_row] = (
-                    supervision_id.group(0).strip().replace("/", "")
-                )
+                df["SupervisionID"][pd_row] = id_no
+
                 no_name = re.search(r"(?<=Name)\s{1,5}\S{1,50}", line).group(0).strip()
                 pattern = "[" + "{[()]}" + "]"
                 df["Name"][pd_row] = re.sub(pattern, "", no_name)
@@ -166,6 +172,10 @@ def parse_error_code_file(name: str) -> None:
             # Getting "Stabilize period" and "Category" values
             if match_no08 and row_no_update:
                 a = 1
+                group01 = re.compile(r"(?<=(^(- Allowed attempts))).*(?= - Max)")
+                group02 = re.compile(r"(?<=(^(- Allowed))).*(?= - Max)")
+                stabilize_period = re.search([group01,group02],line)
+                a = 1
                 stabilize_period = (
                     re.search(
                         r"(?<=- Stabilize)yes|(?<=- Stabilize period)\s{1,3}.*(?=Category)",
@@ -183,6 +193,23 @@ def parse_error_code_file(name: str) -> None:
                 row_no_update = False
 
     a = 1
+
+def get_supervision_id(name: str,line_no:int) -> str:
+
+    # Clearing cache to ensure updated values are used.
+
+
+    for k in range(2,6):
+        line_str = linecache.getline(name, line_no+k)
+        match = re.search("[0-9]{1,5}",line_str)
+        end_match = re.search("(Log text)", line_str)
+        if match:
+            return match.group(0)
+            break
+        elif end_match:
+            return "Not found"
+
+    return "Not found"
 
 
 if __name__ == "__main__":
