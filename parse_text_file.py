@@ -30,7 +30,11 @@ def parse_error_code_file(name: str) -> None:
     df = pd.DataFrame(columns=Column_Names, index=range(0, 2000))
 
     # Define regular expression for extracting data
-    type_no_01 = regex.compile(r"^(No:)\s{1,3}\S*\s{1,3}(SupervisionID)\s{1,3}.*?(Name)\s{1,3}\S{1,}")
+    # invalid_01 = regex.compile(r"^(No:)\s{0,20}\w\s{1,3}(SupervisionID)\s{1,3}.*?(Name)\s{1,3}\S{1,}")
+
+
+    type_no_01_00 = regex.compile(r"^(No:)\s{1,3}\S*\s{1,3}(SupervisionID)\s{1,3}.*?(Name)\s{1,3}\S{1,}")
+    type_no_01_01 = regex.compile(r"^(No:)\s{1,3}\S*\s{1,3}(Supervision(ID|I|))\s{0,20}\n")
     type_no_02 = regex.compile(r"^(Log)\s{1,3}(text)")
     type_no_03 = regex.compile(r"^(Subsystem)\s{1,3}(name)")
     type_no_04 = regex.compile(r"^(Type)\s{1,6}\w*\s{1,6}(Timeout)")
@@ -53,7 +57,8 @@ def parse_error_code_file(name: str) -> None:
     with open(name, "r", encoding="utf-8-sig") as error_file:
         for line in error_file:
             line_number += 1
-            match_no01 = regex.search(type_no_01, line)
+            match_no01_00 = regex.search(type_no_01_00, line)
+            match_no01_01 = regex.search(type_no_01_01, line)
             match_no02 = regex.search(type_no_02, line)
             match_no03 = regex.search(type_no_03, line)
             match_no04 = regex.search(type_no_04, line)
@@ -62,8 +67,8 @@ def parse_error_code_file(name: str) -> None:
             match_no07 = regex.search(type_no_07, line)
             match_no08 = regex.search(type_no_08, line)
 
-            # Getting "No", "SupervisionID" and "Name" values.
-            if match_no01:
+            # Getting "No", "SupervisionID" and "Name" values when output is on correct format.
+            if match_no01_00:
                 row_no_update = True
                 pd_row += 1
                 # Extracting numeric "No:" from this line.
@@ -79,13 +84,25 @@ def parse_error_code_file(name: str) -> None:
                 else:
                     id_no = supervision_id.group(0).strip().replace("/", "")
 
-
-# TODO Get SupervisionID from next line.
                 df["SupervisionID"][pd_row] = id_no
 
                 no_name = regex.search(r"(?<=Name)\s{1,5}\S{1,50}", line).group(0).strip()
                 pattern = "[" + "{[()]}" + "]"
                 df["Name"][pd_row] = regex.sub(pattern, "", no_name)
+            # Getting "No", "SupervisionID" and "Name" values when output is on warped format.
+            elif match_no01_01:
+                row_no_update = True
+                pd_row += 1
+                # Extracting numeric "No:" from this line.
+                no_value = regex.search(
+                    r"(?<=No:)\s{1,3}\S*(?=\s{1,2}\Supervision)", line
+                )
+                df["No"][pd_row] = no_value.group(0).strip().replace("/", "")
+                id_no = get_supervision_id(name,line_number)
+                df["SupervisionID"][pd_row] = id_no
+                no_name = get_name(name,line_number+1).strip()
+                df["Name"][pd_row] = no_name
+
 
             # Getting "Log text" value.
             if match_no02 and row_no_update:
@@ -170,8 +187,11 @@ def parse_error_code_file(name: str) -> None:
 
             # Getting "Stabilize period" and "Category" values
             if match_no08 and row_no_update:
+                test = line_number
                 match_01 = regex.search(r"(?<=- Stabilize period).*(?=Category)",line)
                 match_02 = regex.search(r"(?<=- Stabilize).*(?=Category)", line)
+                match_03 = regex.search(r"((?<=-\s{1,3}Stabilize\s{0,3}\n??period\s{0,3}\n??).*\s{1,}(?=Category)",
+                                        line,regex.MULTILINE)
                 if match_01:
                     stabilize_period = match_01.group(0).strip()
                 elif match_02:
@@ -193,15 +213,30 @@ def get_supervision_id(name: str,line_no:int) -> str:
 
     for k in range(2,6):
         line_str = linecache.getline(name, line_no+k)
-        match = regex.search("[0-9]{1,5}",line_str)
-        end_match = regex.search("(Log text)", line_str)
+        match = regex.search("\s{0,10}\d{1,4}\s{0,10}\n",line_str)
+        end_match = regex.search("(Log text|Name)", line_str)
         if match:
-            return match.group(0)
-            break
+            return match.group(0).strip()
         elif end_match:
             return "Not found"
 
     return "Not found"
+
+def get_name(name: str,line_no:int) -> str:
+
+    for k in range(2,6):
+        line_str = linecache.getline(name, line_no+k)
+        on_same_line = regex.search("(?<=^Name)\s{0,10}\S{1,}\s{0,10}", line_str)
+        not_on_same_line = regex.search("^Name\s{1,10}(\r|\n)",line_str)
+
+        if on_same_line:
+            return on_same_line.group(0).strip()
+        elif not_on_same_line:
+            line_str = linecache.getline(name, line_no + k + 1)
+            return regex.search("{0,10}\S*\s{0,10}", line_str).group(0).strip()
+
+    return "Not found"
+
 
 
 if __name__ == "__main__":
