@@ -1,10 +1,10 @@
-import itertools
+import numpy as np
 import pandas as pd
 import regex
 
 
 # Make function to extract data from text-file.
-def parse_error_code_whole_file(name: str) -> None:
+def parse_error_code_whole_file(name: str, name_cropped: str) -> None:
     # Setting the version of regex to be used.
     regex.VERSION1 = True
 
@@ -53,7 +53,7 @@ def parse_error_code_whole_file(name: str) -> None:
     # referencing the start and end position is done, in order to place found data on correct object.
     idx = 0
     for iter_no in object_no:
-        if idx < number_of_objects - 2:
+        if idx <= number_of_objects - 2:
             df["Start"][idx] = iter_no.start()
         if idx > 0 & idx < number_of_objects - 1:
             df["End"][idx - 1] = iter_no.start()
@@ -121,7 +121,51 @@ def parse_error_code_whole_file(name: str) -> None:
     else:
         return
 
-    # TODO Read in Acknowledgement data, missing 8 values, must be read
+    #  When using find all, number of objects found is the same as for number of ID e.g.
+    # Hence since it's not possible to know which ID pairs with the found values. Due to
+    # this the extent of data associated each ID is used for a iterativ search for those found.
+    # The number's found is 1193, the total number is 1201, hence is 8 values missing.
+    line_05 = regex.findall(
+        r"^Acknowledgement\s{1,2}.*(?=\n- Allowed)", text, regex.MULTILINE
+    )
+    if len(line_05) == number_of_objects - 1:
+        pass
+    else:
+        k_t_1 = 0
+        for k in range(0, number_of_objects - 1):
+            start_pos = df["Start"][k]
+            end_pos = df["End"][k]
+
+            iter_value = regex.search(
+                r"^Acknowledgement\s{1,2}.*(?=\n- Allowed)",
+                text,
+                regex.MULTILINE,
+                pos=start_pos,
+                end_pos=end_pos,
+            )
+            if iter_value is not None:
+                if k - k_t_1 <= 1:
+                    k_t_1 = k
+                else:
+                    print(k)
+                    k_t_1 = k
+
+                df["Acknowledgement"][k] = (
+                    regex.search(
+                        r"(?<=Acknowledgement\n??\s{0,2}).*(?=Shutdown)",
+                        iter_value.group().strip(),
+                    )
+                    .group()
+                    .strip()
+                )
+                df["Shutdown type"][k] = (
+                    regex.search(
+                        r"(?<=type\n??\s{0,2}).*(?=s{0,2}\n??)",
+                        iter_value.group().strip(),
+                    )
+                    .group()
+                    .strip()
+                )
 
     # Reading the line that contains "Allowed attempts" and "Max time disconnected".
     line_06 = regex.findall(
@@ -130,16 +174,12 @@ def parse_error_code_whole_file(name: str) -> None:
     if len(line_06) == number_of_objects - 1:
         # Extract "Allowed attempts"
         df["Allowed attempts"] = [
-            regex.search(
-                r"(?<=attempts\n??\s{0,2}).*(?=- Max)", x
-            ).group(0).strip()
+            regex.search(r"(?<=attempts\n??\s{0,2}).*(?=- Max)", x).group(0).strip()
             for x in line_06
         ]
         # Extract "Max time disconnect"
         df["Max time disconnect"] = [
-            regex.search(
-                r"(?<=disconnect\s{1,3}).*", x
-            ).group(0).strip()
+            regex.search(r"(?<=disconnect\s{1,3}).*", x).group(0).strip()
             for x in line_06
         ]
 
@@ -154,16 +194,12 @@ def parse_error_code_whole_file(name: str) -> None:
     if len(line_07) == number_of_objects - 1:
         # Extract "Time window"
         df["Time window"] = [
-            regex.search(
-                r"(?<=window\n??\s{0,2}).*(?=- Max)", x
-            ).group(0).strip()
+            regex.search(r"(?<=window\n??\s{0,2}).*(?=- Max)", x).group(0).strip()
             for x in line_07
         ]
         # Extract "Max time eliminate"
         df["Max time eliminate"] = [
-            regex.search(
-                r"(?<=eliminate\s{1,3}).*", x
-            ).group(0).strip()
+            regex.search(r"(?<=eliminate\s{1,3}).*", x).group(0).strip()
             for x in line_07
         ]
 
@@ -178,27 +214,72 @@ def parse_error_code_whole_file(name: str) -> None:
     if len(line_08) == number_of_objects - 1:
         # Extract "Stabilize period"
         df["Stabilize period"] = [
-            regex.search(
-                r"(?<=period\n??\s{0,2}).*(?=Category)", x
-            ).group(0).strip()
+            regex.search(r"(?<=period\n??\s{0,2}).*(?=Category)", x).group(0).strip()
             for x in line_08
         ]
         # Extract "Category"
         df["Category"] = [
-            regex.search(
-                r"(?<=Category\s{1,3}).*", x
-            ).group(0).strip()
-            for x in line_08
+            regex.search(r"(?<=Category\s{1,3}).*", x).group(0).strip() for x in line_08
         ]
 
     else:
         return
 
+    delta = np.subtract(np.array(df["End"][:-1]), np.array(df["Start"][1:]))
+    if min(delta) != 0 or max(delta) != 0:
+        print("Feil")
+
+    # Due to the "text-noice" from header and footer, the cropped text-file is used to extract "Criteria" for each error.
+    # Checking if start and end positions are unique.
+
+    # Open the file, so that all text/sentences can be read at once.
+    ifile = open(name_cropped, "r", encoding="utf8")
+    text = ifile.read()
+    ifile.close()
+
+    # Creating the data-frame where data should be stored.
+    Column_Names = ["Start", "End", "No", "Criteria"]
+
+    # Finding the number of that starts with "No:"
+    object_no = regex.findall(r"(?<=^No:\s{1,3})\d{1,4}", text, regex.MULTILINE)
+    number_of_objects = len(object_no)
+
+    # Setting the size of the data-frame which will hold the results.
+    criteria_df = pd.DataFrame(
+        columns=Column_Names, index=range(0, number_of_objects - 1)
+    )
+
+    # Write id-numbers to pandas-dataframe.
+    criteria_df["No"] = object_no[0:-1]
+
+    # Finding start position for each object, so search can be matched to each ID.
+    object_no = regex.finditer(r"^No:\s{1,3}\d{1,4}", text, regex.MULTILINE)
+
+    # Storing the start and end position for each "No: ####" found in the file.
+    # When multistring search return less then the number of objects, then a iterativ serach
+    # referencing the start and end position is done, in order to place found data on correct object.
+    idx = 0
+    for iter_no in object_no:
+        if idx <= number_of_objects - 2:
+            criteria_df["Start"][idx] = iter_no.start()
+        if idx > 0 & idx < number_of_objects - 1:
+            criteria_df["End"][idx - 1] = iter_no.start()
+        idx += 1
+
+    line_09 = regex.findall(
+        r"Criteria:[\s\S]*?(?=\n??No:)",
+        text,
+        regex.MULTILINE,
+    )
+    for k in range(0,len(line_09)):
+        df["Criteria"][k] = regex.sub("Criteria:","",line_09[k],count=1)
+
+    df.to_excel("results/Error_List.xlsx",sheet_name="Error_Codes")
 
 
-
-
-    a = 1
 if __name__ == "__main__":
     file_name = "results/text_kopiert_fra_pdf.txt"
-    parse_error_code_whole_file(file_name)
+    file_name_cropped = "results/text_cropped_copied_from_pdf.txt"
+    parse_error_code_whole_file(file_name, file_name_cropped)
+
+
